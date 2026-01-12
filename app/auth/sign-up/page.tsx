@@ -21,9 +21,22 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    checkRegistrationStatus().then((status) => {
-      setIsAllowed(status.allowed)
-    })
+    checkRegistrationStatus()
+      .then((status) => {
+        console.log("Status received:", status);
+        if (status.error) {
+          console.error("Server action returned error:", status.error);
+          // Optionally handle error state specifically, but for now we just show closed or let it stay in checking if we want? 
+          // Better to probably default to closed or show error.
+          setIsAllowed(false);
+        } else {
+          setIsAllowed(status.allowed);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to check status:", err);
+        setIsAllowed(false); // Default to closed on error
+      })
   }, [])
 
   const handleSignUp = async (e: React.FormEvent) => {
