@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Wallet, TrendingUp, Calendar } from "lucide-react"
+import { Plus, Wallet, TrendingUp, Calendar, Lock } from "lucide-react"
 import { useState } from "react"
 import { AdminTradeDialog } from "@/components/admin-trade-dialog"
 
@@ -221,7 +221,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { adminResetUserPassword } from "@/app/actions/admin"
 import { toast } from "sonner"
-import { Lock } from "lucide-react"
+
 
 function AdminPasswordResetDialog({
   open,
