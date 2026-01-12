@@ -26,16 +26,17 @@ export default function SignUpPage() {
         console.log("Status received:", status);
         if (status.error) {
           console.error("Server action returned error:", status.error);
-          // Optionally handle error state specifically, but for now we just show closed or let it stay in checking if we want? 
-          // Better to probably default to closed or show error.
-          setIsAllowed(false);
+          // If DB check fails, we allow the USER to see the form.
+          // The backend hook will still block if users actually exist.
+          setIsAllowed(true);
         } else {
           setIsAllowed(status.allowed);
         }
       })
       .catch((err) => {
         console.error("Failed to check status:", err);
-        setIsAllowed(false); // Default to closed on error
+        // Fail Open: Allow user to try if the check completely crashes
+        setIsAllowed(true);
       })
   }, [])
 
