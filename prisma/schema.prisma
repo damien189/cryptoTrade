@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String?
+  emailVerified Boolean?
+  image         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  role          String          @default("user") // user or admin
+  balance       Decimal         @default(0) @db.Decimal(20, 2)
+  referralCode  String?         @unique
+  referredBy    String?         // User ID who referred this user
+
+  sessions      Session[]
+  accounts      Account[]
+
+  portfolios    Portfolio[]
+  transactions  Transaction[]
+  withdrawals   Withdrawal[]
+  referrals     Referral[]      @relation("UserReferrals")
+  messages      Message[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Portfolio {
+  id           String   @id @default(uuid())
+  userId       String
+  symbol       String // e.g., BTC, ETH
+  amount       Decimal  @db.Decimal(20, 8)
+  averagePrice Decimal  @db.Decimal(20, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@map("portfolios")
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // buy, sell
+  symbol    String
+  amount    Decimal  @db.Decimal(20, 8)
+  price     Decimal  @db.Decimal(20, 2)
+  total     Decimal  @db.Decimal(20, 2)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Withdrawal {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Decimal  @db.Decimal(20, 2)
+  status    String   @default("pending") // pending, approved, rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("withdrawals")
+}
+
+model Referral {
+  id          String   @id @default(uuid())
+  referrerId  String
+  referredId  String   @unique // One user can only be referred once
+  bonus       Decimal  @default(0) @db.Decimal(20, 2)
+  status      String   @default("pending") // pending, credited
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  referrer    User     @relation("UserReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  @@map("referrals")
+}
+
+
+model Message {
+  id        String   @id @default(uuid())
+  userId    String
+  subject   String
+  content   String
+  status    String   @default("unread") // unread, read
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
