@@ -9,18 +9,28 @@ const adapter = prismaAdapter(prisma, {
 // Wrap createUser to enforce First User Claim
 const originalCreateUser = adapter.createUser;
 adapter.createUser = async (data, ctx) => {
-  const count = await prisma.user.count();
+  try {
+    const count = await prisma.user.count();
+    console.log("[v0] Auth Hook: Checking user count:", count);
 
-  if (count === 0) {
-    // First user becomes admin
-    return originalCreateUser({
-      ...data,
-      role: "admin",
-    }, ctx);
-  } else {
-    // Subsequent users are REJECTED
-    // This prevents any sign-up via API or Frontend
-    throw new Error("Registration is closed. Only the first user can sign up.");
+    if (count === 0) {
+      console.log("[v0] Auth Hook: allowing first user as admin");
+      // First user becomes admin
+      return originalCreateUser({
+        ...data,
+        role: "admin",
+      }, ctx);
+    } else {
+      console.log("[v0] Auth Hook: blocking subsequent user");
+      // Subsequent users are REJECTED
+      throw new Error("Registration is closed. Only the first user can sign up.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Registration is closed")) {
+      throw error;
+    }
+    console.error("[v0] Auth Hook Error:", error);
+    throw new Error("Registration failed due to system error.");
   }
 };
 
@@ -30,7 +40,11 @@ export const auth = betterAuth({
     enabled: true,
   },
   trustedOrigins: process.env.NODE_ENV === "production"
-    ? [process.env.BETTER_AUTH_URL!]
+    ? [
+      process.env.BETTER_AUTH_URL!,
+      "https://" + process.env.VERCEL_URL,
+      // Add current origin as safe fallback if needed
+    ]
     : ["http://localhost:3000"],
   session: {
     cookieCache: {
