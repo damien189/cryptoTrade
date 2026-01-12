@@ -29,7 +29,9 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  trustedOrigins: ["http://localhost:3000"], // Explicitly trust localhost
+  trustedOrigins: process.env.NODE_ENV === "production"
+    ? [process.env.BETTER_AUTH_URL!]
+    : ["http://localhost:3000"],
   session: {
     cookieCache: {
       enabled: true,
@@ -37,13 +39,13 @@ export const auth = betterAuth({
     }
   },
   advanced: {
-    useSecureCookies: false, // Force false for localhost development
+    useSecureCookies: process.env.NODE_ENV === "production",
     crossSubDomainCookies: {
       enabled: false
     },
     defaultCookieAttributes: {
       sameSite: "lax",
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       httpOnly: true
     }
