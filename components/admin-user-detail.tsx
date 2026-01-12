@@ -51,6 +51,7 @@ interface AdminUserDetailProps {
 
 export function AdminUserDetail({ user, onTradeComplete }: AdminUserDetailProps) {
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false)
 
   const totalPortfolioValue = user.portfolios.reduce(
     (acc, p) => acc + p.amount * p.averagePrice,
@@ -75,6 +76,10 @@ export function AdminUserDetail({ user, onTradeComplete }: AdminUserDetailProps)
               <Button onClick={() => setIsTradeDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Trade
+              </Button>
+              <Button variant="outline" onClick={() => setIsPasswordResetOpen(true)}>
+                <Lock className="mr-2 h-4 w-4" />
+                Reset Pass
               </Button>
             </div>
           </div>
@@ -201,6 +206,84 @@ export function AdminUserDetail({ user, onTradeComplete }: AdminUserDetailProps)
         userBalance={user.balance}
         onTradeComplete={onTradeComplete}
       />
+      <AdminPasswordResetDialog
+        open={isPasswordResetOpen}
+        onOpenChange={setIsPasswordResetOpen}
+        userId={user.id}
+        userEmail={user.email}
+      />
     </>
+  )
+}
+
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { adminResetUserPassword } from "@/app/actions/admin"
+import { toast } from "sonner"
+import { Lock } from "lucide-react"
+
+function AdminPasswordResetDialog({
+  open,
+  onOpenChange,
+  userId,
+  userEmail
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userId: string;
+  userEmail: string;
+}) {
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const result = await adminResetUserPassword(userId, password)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Password reset successfully")
+      onOpenChange(false)
+      setPassword("")
+    }
+
+    setIsLoading(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+          <DialogDescription>
+            Set a new temporary password for <b>{userEmail}</b>.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new-admin-password">New Password</Label>
+            <Input
+              id="new-admin-password"
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter new password"
+              required
+              minLength={8}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Saving..." : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

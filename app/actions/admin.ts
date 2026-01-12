@@ -11,7 +11,7 @@ export async function createUser(userData: { email: string; password: string; fi
   try {
     // Verify admin access
     const session = await auth.api.getSession({
-        headers: await headers()
+      headers: await headers()
     })
 
     if (!session) {
@@ -19,8 +19,8 @@ export async function createUser(userData: { email: string; password: string; fi
     }
 
     const adminUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true }
+      where: { id: session.user.id },
+      select: { role: true }
     })
 
     if (adminUser?.role !== "admin") {
@@ -29,32 +29,32 @@ export async function createUser(userData: { email: string; password: string; fi
 
     // Create auth user using Better Auth API
     const name = `${userData.firstName} ${userData.lastName}`.trim()
-    
+
     // Note: This will create the user and potentially sign them in context of this request, 
     // but since we are server side, it primarily creates the record.
     const newUserResponse = await auth.api.signUpEmail({
-        body: {
-            email: userData.email,
-            password: userData.password,
-            name: name,
-            // We can't set role/balance directly in signUpEmail unless we have custom fields in schema that match and are allowed
-            // Better Auth doesn't support arbitrary metadata in signUpEmail body by default unless configured.
-            // We will update role and balance after creation.
-        }
+      body: {
+        email: userData.email,
+        password: userData.password,
+        name: name,
+        // We can't set role/balance directly in signUpEmail unless we have custom fields in schema that match and are allowed
+        // Better Auth doesn't support arbitrary metadata in signUpEmail body by default unless configured.
+        // We will update role and balance after creation.
+      }
     })
 
     if (!newUserResponse) {
-        throw new Error("Failed to create user")
+      throw new Error("Failed to create user")
     }
-    
+
     // Update the newly created user with role and balance
     // newUserResponse.user contains the created user
     await prisma.user.update({
-        where: { id: newUserResponse.user.id },
-        data: {
-            role: userData.role,
-            balance: userData.balance
-        }
+      where: { id: newUserResponse.user.id },
+      data: {
+        role: userData.role,
+        balance: userData.balance
+      }
     })
 
     revalidatePath("/admin")
@@ -69,7 +69,7 @@ export async function approveWithdrawal(withdrawalId: string) {
   try {
     // Verify admin access
     const session = await auth.api.getSession({
-        headers: await headers()
+      headers: await headers()
     })
 
     if (!session) {
@@ -77,8 +77,8 @@ export async function approveWithdrawal(withdrawalId: string) {
     }
 
     const adminUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true }
+      where: { id: session.user.id },
+      select: { role: true }
     })
 
     if (adminUser?.role !== "admin") {
@@ -87,7 +87,7 @@ export async function approveWithdrawal(withdrawalId: string) {
 
     // Get withdrawal details
     const withdrawal = await prisma.withdrawal.findUnique({
-        where: { id: withdrawalId }
+      where: { id: withdrawalId }
     })
 
     if (!withdrawal) {
@@ -96,8 +96,8 @@ export async function approveWithdrawal(withdrawalId: string) {
 
     // Update user balance
     const user = await prisma.user.findUnique({
-        where: { id: withdrawal.userId },
-        select: { balance: true }
+      where: { id: withdrawal.userId },
+      select: { balance: true }
     })
 
     if (!user) {
@@ -110,13 +110,13 @@ export async function approveWithdrawal(withdrawalId: string) {
 
     // Update withdrawal status and user balance
     await prisma.withdrawal.update({
-        where: { id: withdrawalId },
-        data: { status: "approved" }
+      where: { id: withdrawalId },
+      data: { status: "approved" }
     })
 
     await prisma.user.update({
-        where: { id: withdrawal.userId },
-        data: { balance: newBalance }
+      where: { id: withdrawal.userId },
+      data: { balance: newBalance }
     })
 
     revalidatePath("/admin")
@@ -129,9 +129,9 @@ export async function approveWithdrawal(withdrawalId: string) {
 
 export async function rejectWithdrawal(withdrawalId: string) {
   try {
-     // Verify admin access
+    // Verify admin access
     const session = await auth.api.getSession({
-        headers: await headers()
+      headers: await headers()
     })
 
     if (!session) {
@@ -139,8 +139,8 @@ export async function rejectWithdrawal(withdrawalId: string) {
     }
 
     const adminUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true }
+      where: { id: session.user.id },
+      select: { role: true }
     })
 
     if (adminUser?.role !== "admin") {
@@ -149,8 +149,8 @@ export async function rejectWithdrawal(withdrawalId: string) {
 
     // Update withdrawal status
     await prisma.withdrawal.update({
-        where: { id: withdrawalId },
-        data: { status: "rejected" }
+      where: { id: withdrawalId },
+      data: { status: "rejected" }
     })
 
     revalidatePath("/admin")
@@ -158,6 +158,67 @@ export async function rejectWithdrawal(withdrawalId: string) {
   } catch (error) {
     console.error("[v0] Reject withdrawal error:", error)
     return { error: "Failed to reject withdrawal" }
+  }
+}
+export async function getAdminStats() {
+  // ... logic for getting dashboard stats (placeholder if needed, or if it exists elsewhere ignore)
+  // Actually, I'll insert the new function above the existing ones or at the end. Use a new block.
+}
+
+export async function adminResetUserPassword(userId: string, newPassword: string) {
+  try {
+    // Verify admin access
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
+
+    if (!session) {
+      return { error: "Unauthorized" }
+    }
+
+    const adminUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    if (adminUser?.role !== "admin") {
+      return { error: "Unauthorized" }
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return { error: "Password must be at least 8 characters" }
+    }
+
+    // Find the account
+    const account = await prisma.account.findFirst({
+      where: {
+        userId: userId,
+        providerId: "credential"
+      }
+    })
+
+    const bcrypt = await import("bcryptjs")
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    if (account) {
+      // Update existing account
+      await prisma.account.update({
+        where: { id: account.id },
+        data: { password: hashedPassword }
+      })
+    } else {
+      // Create account if it doesn't exist (edge case for users created differently?)
+      // Usually better-auth creates account with user. If not found, it's weird.
+      // We'll create one just in case or return error.
+      // Let's return error to be safe, creating account needs more fields potentially.
+      return { error: "User has no credential account to update" }
+    }
+
+    revalidatePath(`/admin/users/${userId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Admin reset password error:", error)
+    return { error: "Failed to reset password" }
   }
 }
 
@@ -310,7 +371,7 @@ export async function executeAdminTrade({ userId, type, cryptoId, symbol, amount
     } else {
       // Import getCryptoPrice dynamically to avoid circular dependencies
       const { getCryptoPrice } = await import("@/lib/crypto-api")
-      
+
       // Get current crypto price
       currentPrice = await getCryptoPrice(cryptoId)
       if (currentPrice === 0) {
