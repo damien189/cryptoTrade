@@ -68,6 +68,7 @@ export default function SignUpPage() {
   }
 
   if (!isAllowed) {
+    // If there was a specific error (like DB connection), show that instead of "Closed"
     return (
       <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
         <Card className="w-full max-w-sm">
