@@ -9,14 +9,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [canSignUp, setCanSignUp] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    // Check if sign up is allowed (first user claim)
+    import("@/app/actions/auth-check").then(mod => {
+      mod.checkRegistrationStatus().then(status => {
+        setCanSignUp(status.allowed)
+      })
+    })
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,42 +34,42 @@ export default function LoginPage() {
     setError(null)
 
     try {
-        const { data, error: signInError } = await authClient.signIn.email({
-          email,
-          password,
-        }, {
-          onRequest: () => {
-            setIsLoading(true)
-          },
-          onSuccess: async () => {
-            console.log("Login successful via callback, redirecting...")
-          },
-          onError: (ctx) => {
-            console.error("Login error via callback:", ctx.error)
-          }
-        })
-        
-        console.log("Sign in response:", { data, signInError })
-        
-        if (signInError) {
-          console.error("Login error:", signInError)
-          setError(signInError.message || "Failed to sign in")
-          setIsLoading(false)
-          return
+      const { data, error: signInError } = await authClient.signIn.email({
+        email,
+        password,
+      }, {
+        onRequest: () => {
+          setIsLoading(true)
+        },
+        onSuccess: async () => {
+          console.log("Login successful via callback, redirecting...")
+        },
+        onError: (ctx) => {
+          console.error("Login error via callback:", ctx.error)
         }
-        
-        if (data) {
-          console.log("Login successful, redirecting to dashboard...")
-          // Force a hard navigation to ensure cookies are sent and page state resets
-          window.location.href = "/dashboard"
-        } else {
-          setError("Login failed - no session returned")
-          setIsLoading(false)
-        }
-    } catch (err) {
-        console.error("Unexpected login error:", err)
-        setError("An unexpected error occurred")
+      })
+
+      console.log("Sign in response:", { data, signInError })
+
+      if (signInError) {
+        console.error("Login error:", signInError)
+        setError(signInError.message || "Failed to sign in")
         setIsLoading(false)
+        return
+      }
+
+      if (data) {
+        console.log("Login successful, redirecting to dashboard...")
+        // Force a hard navigation to ensure cookies are sent and page state resets
+        window.location.href = "/dashboard"
+      } else {
+        setError("Login failed - no session returned")
+        setIsLoading(false)
+      }
+    } catch (err) {
+      console.error("Unexpected login error:", err)
+      setError("An unexpected error occurred")
+      setIsLoading(false)
     }
   }
 
@@ -99,12 +109,16 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
-                <div className="text-center text-sm">
-                  Don't have an account?{" "}
-                  <Link href="/auth/sign-up" className="underline underline-offset-4">
-                    Sign up
-                  </Link>
-                </div>
+
+                {/* Only show Sign Up if it's the First User Claim */}
+                {canSignUp && (
+                  <div className="text-center text-sm">
+                    First time setup?{" "}
+                    <Link href="/auth/sign-up" className="underline underline-offset-4 font-medium text-primary">
+                      Claim Admin Account
+                    </Link>
+                  </div>
+                )}
               </div>
             </form>
           </CardContent>
