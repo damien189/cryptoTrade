@@ -58,8 +58,9 @@ export default function SignUpPage() {
           setIsLoading(false);
         }
       });
-    } catch (err) {
-      setError("An unexpected error occurred.")
+    } catch (err: any) {
+      console.error("Sign up error:", err);
+      setError(err?.message || "An unexpected error occurred.");
       setIsLoading(false)
     }
   }
