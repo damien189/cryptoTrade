@@ -37,46 +37,26 @@ export async function updateUserName(name: string) {
 
 export async function updateUserPassword(currentPassword: string, newPassword: string) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers()
-    })
-
-    if (!session) {
-      return { error: "Unauthorized" }
-    }
+    // No need to manually check session here if we rely on auth.api.changePassword which checks it,
+    // but the function signature requires headers.
 
     if (!newPassword || newPassword.length < 8) {
       return { error: "New password must be at least 8 characters" }
     }
 
-    // Use Better Auth to change password
-    // Better Auth doesn't have a direct changePassword API in server actions,
-    // so we'll need to verify current password and update via the account
-    const account = await prisma.account.findFirst({
-      where: { 
-        userId: session.user.id,
-        providerId: "credential"
-      }
+    const { error } = await auth.api.changePassword({
+      body: {
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true
+      },
+      headers: await headers()
     })
 
-    if (!account || !account.password) {
-      return { error: "No password-based account found" }
+    if (error) {
+      console.error("Change Password Error:", error)
+      return { error: error.message || "Failed to update password" }
     }
-
-    // Verify current password using bcrypt (Better Auth uses bcrypt by default)
-    const bcrypt = await import("bcryptjs")
-    const isValid = await bcrypt.compare(currentPassword, account.password)
-
-    if (!isValid) {
-      return { error: "Current password is incorrect" }
-    }
-
-    // Hash new password and update
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
-    await prisma.account.update({
-      where: { id: account.id },
-      data: { password: hashedPassword }
-    })
 
     return { success: true }
   } catch (error) {
